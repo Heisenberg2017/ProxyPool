@@ -102,3 +102,10 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# IDE
+.idea/
+
+# my_project
+README.md
+test.py
