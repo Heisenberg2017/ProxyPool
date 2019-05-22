@@ -9,6 +9,7 @@ Features
 
 ================================  ==============================
 Proxy pool server                   Yes
+Proxy IP checking                   WIP
 Python type checking                WIP
 Asynchronous HTTP request           WIP
 Benchmarks                          No
