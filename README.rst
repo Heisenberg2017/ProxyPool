@@ -72,4 +72,4 @@ Benchmarks
 License
 -------
 
-The aioredis is offered under MIT license.
+The ProxyPool is offered under MIT license.
