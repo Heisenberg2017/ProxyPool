@@ -1,14 +1,15 @@
 import json
 import re
-from itertools import chain
+import asyncio
 
-from .utils import get_page
+from aiohttp import ClientSession
 from pyquery import PyQuery as pq
 
 from proxypool.log import logger
+from proxypool.utils import fetch_html
 
 
-def daili66_crawler(page_count=4):
+async def daili66_crawler(page_count: int = 4) -> list:
     """
     获取代理66
     :param page_count: 页码
@@ -16,68 +17,117 @@ def daili66_crawler(page_count=4):
     """
     start_url = 'http://www.66ip.cn/{}.html'
     urls = [start_url.format(page) for page in range(1, page_count + 1)]
+    proxies = []
     for url in urls:
         logger.debug(f'Crawling {url}')
-        html = get_page(url)
+        html = None
+        async with ClientSession() as session:
+            try:
+                html = await fetch_html(url, session=session)
+            except Exception as e:
+                logger.warning(f'Crawl failed {e}')
+            else:
+                logger.info(f'Crawl succeed')
         if html:
             doc = pq(html)
             trs = doc('.containerbox table tr:gt(0)').items()
             for tr in trs:
                 ip = tr.find('td:nth-child(1)').text()
                 port = tr.find('td:nth-child(2)').text()
-                yield ':'.join([ip, port])
+                proxies.append(':'.join([ip, port]))
+    return proxies
 
-def ip3366_crawler():
+
+async def ip3366_crawler() -> list:
+    proxies = []
     for page in range(1, 4):
+        html = None
         start_url = 'http://www.ip3366.net/free/?stype=1&page={}'.format(page)
-        html = get_page(start_url)
+        async with ClientSession() as session:
+            try:
+                html = await fetch_html(start_url, session=session)
+
+            except Exception as e:
+                logger.warning(f'Crawl failed {e}')
+            else:
+                logger.info(f'Crawl succeed')
         ip_address = re.compile('<tr>\s*<td>(.*?)</td>\s*<td>(.*?)</td>')
         # \s * 匹配空格，起到换行作用
         re_ip_address = ip_address.findall(html)
         for address, port in re_ip_address:
-            result = address+':'+ port
-            yield result.replace(' ', '')
+            result = address + ':' + port
+            proxies.append(result.replace(' ', ''))
+    return proxies
 
-def kuaidaili_crawler():
+
+async def kuaidaili_crawler() -> list:
+    proxies = []
     for i in range(1, 4):
+        html = None
         start_url = 'http://www.kuaidaili.com/free/inha/{}/'.format(i)
-        html = get_page(start_url)
+        async with ClientSession() as session:
+            try:
+                html = await fetch_html(start_url, session)
+            except Exception as e:
+                logger.warning(f'Crawl failed {e}')
+            else:
+                logger.info(f'Crawl succeed')
         if html:
-            ip_address = re.compile('<td data-title="IP">(.*?)</td>') 
+            ip_address = re.compile('<td data-title="IP">(.*?)</td>')
             re_ip_address = ip_address.findall(html)
             port = re.compile('<td data-title="PORT">(.*?)</td>')
             re_port = port.findall(html)
-            for address,port in zip(re_ip_address, re_port):
-                address_port = address+':'+port
-                yield address_port.replace(' ','')
+            for address, port in zip(re_ip_address, re_port):
+                address_port = address + ':' + port
+                proxies.append(address_port.replace(' ', ''))
+    return proxies
 
-def xicidaili_crawler():
+
+async def xicidaili_crawler() -> list:
+    proxies = []
     for i in range(1, 3):
+        html = None
         start_url = 'http://www.xicidaili.com/nn/{}'.format(i)
         headers = {
-            'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-            'Cookie':'_free_proxy_session=BAh7B0kiD3Nlc3Npb25faWQGOgZFVEkiJWRjYzc5MmM1MTBiMDMzYTUzNTZjNzA4NjBhNWRjZjliBjsAVEkiEF9jc3JmX3Rva2VuBjsARkkiMUp6S2tXT3g5a0FCT01ndzlmWWZqRVJNek1WanRuUDBCbTJUN21GMTBKd3M9BjsARg%3D%3D--2a69429cb2115c6a0cc9a86e0ebe2800c0d471b3',
-            'Host':'www.xicidaili.com',
-            'Referer':'http://www.xicidaili.com/nn/3',
-            'Upgrade-Insecure-Requests':'1',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+            'Cookie': '_free_proxy_session=BAh7B0kiD3Nlc3Npb25faWQGOgZFVEkiJWRjYzc5MmM1MTBiMDMzYTUzNTZjNzA4NjBhNWRjZjliBjsAVEkiEF9jc3JmX3Rva2VuBjsARkkiMUp6S2tXT3g5a0FCT01ndzlmWWZqRVJNek1WanRuUDBCbTJUN21GMTBKd3M9BjsARg%3D%3D--2a69429cb2115c6a0cc9a86e0ebe2800c0d471b3',
+            'Host': 'www.xicidaili.com',
+            'Referer': 'http://www.xicidaili.com/nn/3',
+            'Upgrade-Insecure-Requests': '1',
         }
-        html = get_page(start_url, options=headers)
+        async with ClientSession() as session:
+            try:
+                html = await fetch_html(start_url, session, headers=headers)
+            except Exception as e:
+                logger.warning(f'Crawl failed {e}')
+            else:
+                logger.info(f'Crawl succeed')
         if html:
             find_trs = re.compile('<tr class.*?>(.*?)</tr>', re.S)
             trs = find_trs.findall(html)
             for tr in trs:
-                find_ip = re.compile('<td>(\d+\.\d+\.\d+\.\d+)</td>') 
+                find_ip = re.compile('<td>(\d+\.\d+\.\d+\.\d+)</td>')
                 re_ip_address = find_ip.findall(tr)
                 find_port = re.compile('<td>(\d+)</td>')
                 re_port = find_port.findall(tr)
-                for address,port in zip(re_ip_address, re_port):
-                    address_port = address+':'+port
-                    yield address_port.replace(' ','')
+                for address, port in zip(re_ip_address, re_port):
+                    address_port = address + ':' + port
+                    proxies.append(address_port.replace(' ', ''))
+    return proxies
 
-def ip3366_crawler():
+
+async def ip3366_crawler() -> list:
+    proxies = []
     for i in range(1, 4):
+        html = None
         start_url = 'http://www.ip3366.net/?stype=1&page={}'.format(i)
-        html = get_page(start_url)
+        async with ClientSession() as session:
+            try:
+                html = await fetch_html(start_url, session)
+            except Exception as e:
+                logger.warning(f'Crawl failed {e}')
+            else:
+                logger.info(f'Crawl succeed')
         if html:
             find_tr = re.compile('<tr>(.*?)</tr>', re.S)
             trs = find_tr.findall(html)
@@ -86,13 +136,23 @@ def ip3366_crawler():
                 re_ip_address = find_ip.findall(trs[s])
                 find_port = re.compile('<td>(\d+)</td>')
                 re_port = find_port.findall(trs[s])
-                for address,port in zip(re_ip_address, re_port):
-                    address_port = address+':'+port
-                    yield address_port.replace(' ','')
+                for address, port in zip(re_ip_address, re_port):
+                    address_port = address + ':' + port
+                    proxies.append(address_port.replace(' ', ''))
+    return proxies
 
-def iphai_crawler():
+
+async def iphai_crawler() -> list:
+    proxies = []
     start_url = 'http://www.iphai.com/'
-    html = get_page(start_url)
+    html = None
+    async with ClientSession() as session:
+        try:
+            html = await fetch_html(start_url, session)
+        except Exception as e:
+            logger.warning(f'Crawl failed {e}')
+        else:
+            logger.info(f'Crawl succeed')
     if html:
         find_tr = re.compile('<tr>(.*?)</tr>', re.S)
         trs = find_tr.findall(html)
@@ -101,11 +161,14 @@ def iphai_crawler():
             re_ip_address = find_ip.findall(trs[s])
             find_port = re.compile('<td>\s+(\d+)\s+</td>', re.S)
             re_port = find_port.findall(trs[s])
-            for address,port in zip(re_ip_address, re_port):
-                address_port = address+':'+port
-                yield address_port.replace(' ','')
+            for address, port in zip(re_ip_address, re_port):
+                address_port = address + ':' + port
+                proxies.append(address_port.replace(' ', ''))
+    return proxies
 
-def data5u_crawler():
+
+async def data5u_crawler() -> list:
+    proxies = []
     start_url = 'http://www.data5u.com/free/gngn/index.shtml'
     headers = {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
@@ -119,19 +182,29 @@ def data5u_crawler():
         'Upgrade-Insecure-Requests': '1',
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.108 Safari/537.36',
     }
-    html = get_page(start_url, options=headers)
+    html = None
+    async with ClientSession() as session:
+        try:
+            html = await fetch_html(start_url, session, headers=headers)
+        except Exception as e:
+            logger.warning(f'Crawl failed {e}')
+        else:
+            logger.info(f'Crawl succeed')
     if html:
-        ip_address = re.compile('<span><li>(\d+\.\d+\.\d+\.\d+)</li>.*?<li class=\"port.*?>(\d+)</li>', re.S)
+        ip_address = re.compile(
+            '<span><li>(\d+\.\d+\.\d+\.\d+)</li>.*?<li class=\"port.*?>(\d+)</li>',
+            re.S)
         re_ip_address = ip_address.findall(html)
         for address, port in re_ip_address:
             result = address + ':' + port
-            yield result.replace(' ', '')
+            proxies.append(result.replace(' ', ''))
+    return proxies
 
 
-ip_crawlers = [globals()[name]() for name in globals() if name.endswith('_crawler')]
+async def get_proxies():
+    ip_crawlers = [asyncio.create_task(globals()[name]()) for name in globals() if
+                   name.endswith('_crawler')]
+    return await asyncio.gather(*ip_crawlers)
 
-
-def get_proxies():
-    for proxy in chain.from_iterable(ip_crawlers):
-        logger.debug(f'成功获取到代理 {proxy}')
-        yield proxy
+if __name__ == '__main__':
+    asyncio.run(get_proxies())

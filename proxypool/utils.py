@@ -1,4 +1,5 @@
 import requests
+from aiohttp import ClientSession
 from requests.exceptions import ConnectionError
 
 from proxypool.log import logger
@@ -11,20 +12,11 @@ base_headers = {
 }
 
 
-def get_page(url, options={}):
-    """
-    抓取代理
-    :param url:
-    :param options:
-    :return:
-    """
-    headers = dict(base_headers, **options)
+async def fetch_html(url: str, session: ClientSession, **kwargs) -> str:
     logger.info(f'正在抓取 {url}')
-    try:
-        response = requests.get(url, headers=headers)
-        logger.debug(f'抓取成功 {url} {response.status_code}')
-        if response.status_code == 200:
-            return response.text
-    except ConnectionError:
-        logger.warning(f'抓取失败 {url}')
-        return None
+    resp = await session.request(method="GET", url=url, **kwargs)
+    logger.info("Got response [%s] for URL: %s", resp.status, url)
+    resp.raise_for_status()
+    logger.error(f'抓取成功 {url} {resp.status}')
+    html = await resp.text()
+    return html

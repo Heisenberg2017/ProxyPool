@@ -1,3 +1,7 @@
+import asyncio
+
+from itertools import chain
+
 from proxypool.log import logger
 from proxypool.db import RedisClient
 from proxypool.crawler import get_proxies
@@ -19,8 +23,10 @@ class Getter():
             return False
     
     def run(self):
+
         logger.debug('获取器开始执行')
         if not self.is_over_threshold():
             # 获取代理
-            for proxy in get_proxies():
+            for proxy in chain.from_iterable(asyncio.run(get_proxies())):
+                logger.info(f'Proxies is {proxy}')
                 self.redis.add(proxy)
