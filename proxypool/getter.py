@@ -27,6 +27,7 @@ class Getter():
         logger.debug('获取器开始执行')
         if not self.is_over_threshold():
             # 获取代理
-            for proxy in chain.from_iterable(asyncio.run(get_proxies())):
-                logger.info(f'Proxies is {proxy}')
-                self.redis.add(proxy)
+            even_res = asyncio.run(get_proxies())
+            for proxy_gen in chain.from_iterable(even_res):
+                for proxy in proxy_gen:
+                    self.redis.add(proxy)
