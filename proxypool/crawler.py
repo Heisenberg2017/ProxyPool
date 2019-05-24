@@ -173,10 +173,18 @@ class Data5UCrawler(IPCrawlerBase):
             yield result.replace(' ', '')
 
 
+async def wrapper(cor):
+    f = []
+    async for j in cor:
+        f.append(j)
+    return f
+
+
 async def get_proxies():
-    results = []
-    for sub in IPCrawlerBase.__subclasses__():
-        async with ClientSession() as session:
-            result = [proxies_gen async for proxies_gen in sub().get_proxies(session=session)]
-            results.append(result)
-    return results
+    tasks = []
+    async with ClientSession() as session:
+        for sub in IPCrawlerBase.__subclasses__():
+            cor = sub().get_proxies(session=session)
+            tasks.append(wrapper(cor))
+        cors = await asyncio.gather(*tasks)
+    return cors
