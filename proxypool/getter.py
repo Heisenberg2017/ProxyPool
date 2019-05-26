@@ -1,10 +1,11 @@
 import asyncio
 
 from itertools import chain
+from aiohttp import ClientSession
 
 from proxypool.log import logger
 from proxypool.db import RedisClient
-from proxypool.crawler import get_proxies
+from proxypool.crawler import IPCrawlerBase
 from proxypool.settings import *
 import sys
 
@@ -21,13 +22,22 @@ class Getter():
             return True
         else:
             return False
-    
+
+    async def quote_persist(self, cor):
+        async for parse_gen in cor:
+            for proxies in parse_gen:
+                self.redis.add(proxies)
+
+    async def get_proxies(self):
+        tasks = []
+        async with ClientSession() as session:
+            for sub in IPCrawlerBase.__subclasses__():
+                cor = sub().get_proxies(session=session)
+                tasks.append(self.quote_persist(cor))
+            await asyncio.gather(*tasks)
+
     def run(self):
 
         logger.debug('获取器开始执行')
         if not self.is_over_threshold():
-            # 获取代理
-            even_res = asyncio.run(get_proxies())
-            for proxy_gen in chain.from_iterable(even_res):
-                for proxy in proxy_gen:
-                    self.redis.add(proxy)
+            asyncio.run(self.get_proxies())
