@@ -9,9 +9,11 @@ Features
 
 ================================  ==============================
 Proxy pool server                   Yes
-Proxy IP checking                   WIP
-Python type checking                WIP
-Asynchronous HTTP request           WIP
+Proxy IP checking                   No
+Python type checking                No
+Unit test                           No
+Item Pipeline                       WIP
+Asynchronous HTTP request           Yes
 Benchmarks                          No
 Asynchronous Server support         No
 Tested CPython versions             3.7
