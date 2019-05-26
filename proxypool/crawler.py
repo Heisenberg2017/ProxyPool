@@ -42,7 +42,8 @@ class IPCrawlerBase(abc.ABC):
         for url in self.get_urls():
             html = None
             try:
-                html = await self.fetch(url, session=session, headers=self.headers)
+                html = await self.fetch(url, session=session,
+                                        headers=self.headers)
             except Exception as e:
                 logger.warning(f'Crawl failed url {url} error {e}')
             else:
@@ -171,12 +172,3 @@ class Data5UCrawler(IPCrawlerBase):
         for address, port in re_ip_address:
             result = address + ':' + port
             yield result.replace(' ', '')
-
-
-async def get_proxies():
-    results = []
-    for sub in IPCrawlerBase.__subclasses__():
-        async with ClientSession() as session:
-            result = [proxies_gen async for proxies_gen in sub().get_proxies(session=session)]
-            results.append(result)
-    return results
