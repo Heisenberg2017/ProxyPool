@@ -1,13 +1,12 @@
 import asyncio
 
-from itertools import chain
 from aiohttp import ClientSession
 
 from proxypool.log import logger
 from proxypool.db import RedisClient
 from proxypool.crawler import IPCrawlerBase
+from proxypool.pipelines import ITEM_PIPELINES
 from proxypool.settings import *
-import sys
 
 
 class Getter():
@@ -23,17 +22,23 @@ class Getter():
         else:
             return False
 
-    async def quote_persist(self, cor):
-        async for parse_gen in cor:
-            for proxies in parse_gen:
-                self.redis.add(proxies)
+    @staticmethod
+    def process_item(item):
+        for pipeline_info in sorted(ITEM_PIPELINES.items(), key=lambda item: item[1]):
+            pipeline_func, weight = pipeline_info
+            item = pipeline_func(item)
+
+    async def task_wrapper(self, cor):
+        async for proxies_gen in cor:
+            for proxies in proxies_gen:
+                Getter.process_item(proxies)
 
     async def get_proxies(self):
         tasks = []
         async with ClientSession() as session:
             for sub in IPCrawlerBase.__subclasses__():
                 cor = sub().get_proxies(session=session)
-                tasks.append(self.quote_persist(cor))
+                tasks.append(self.task_wrapper(cor))
             await asyncio.gather(*tasks)
 
     def run(self):
